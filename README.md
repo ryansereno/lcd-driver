@@ -1,3 +1,3 @@
 
 
-<img src="images/image.jpeg" width="200px">
+<img src="images/image.jpeg" width="500px">
