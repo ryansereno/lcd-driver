@@ -1,5 +1,24 @@
-#include <stdint.h>     // standard integer types
-//#include <util/delay.h> // delay functions
+#include <stdint.h> // standard integer types
+
+// UART serial communication registers
+#define UBRR0H (*((volatile uint8_t *)0xC5))
+#define UBRR0L (*((volatile uint8_t *)0xC4))
+#define UCSR0A (*((volatile uint8_t *)0xC0))
+#define UCSR0B (*((volatile uint8_t *)0xC1))
+#define UCSR0C (*((volatile uint8_t *)0xC2))
+#define UDR0 (*((volatile uint8_t *)0xC6))
+
+// UCSR0B bits
+#define RXEN0 4
+#define TXEN0 3
+
+// UCSR0C bits
+#define UCSZ00 1
+#define UCSZ01 2
+
+// UCSR0A bits
+#define RXC0 7
+#define UDRE0 5
 
 // board registers
 #define PORTB_REG (*((volatile uint8_t *)0x25))
@@ -18,9 +37,37 @@
 #define LCD_D5_BIT 4 // PD4 (pin 4)->LCD_D5
 #define LCD_D6_BIT 3 // PD3 (pin 3)->LCD_D6
 #define LCD_D7_BIT 2 // PD2 (pin 2)->LCD_D7
-#define _delay_us(x) 
+#define _delay_us(x)
 #define _delay_ms(x)
 
+// serial communication functions
+void uart_init(void) {
+  // Set baud rate to 9600 for 16MHz clock
+  UBRR0H = 0;
+  UBRR0L = 103;
+  // Enable receiver and transmitter
+  UCSR0B = (1 << RXEN0) | (1 << TXEN0);
+  // Set frame format: 8data, 1stop bit
+  UCSR0C = (3 << UCSZ00);
+}
+
+void uart_transmit(unsigned char data) {
+  // Wait for empty transmit buffer
+  while (!(UCSR0A & (1 << UDRE0)))
+    ;
+  // Put data into buffer, sends the data
+  UDR0 = data;
+}
+
+unsigned char uart_receive(void) {
+  // Wait for data to be received
+  while (!(UCSR0A & (1 << RXC0)))
+    ;
+  // Get and return received data from buffer
+  return UDR0;
+}
+
+// LCD functions
 void lcd_pulse_enable(void) {
   PORTB_REG |= (1 << LCD_E_BIT);  // set enable pin high
   _delay_us(1);                   // wait for 1 microsecond
@@ -99,15 +146,21 @@ void lcd_string(const char *str) {
 
 int main(void) {
   lcd_init(); // Initialize the LCD
+  uart_init();
 
   lcd_command(0x80); // Set cursor to beginning of first line
-  lcd_string("Llama3.1 70B");
+  lcd_string("Llama3.1 7B");
 
   lcd_command(0xC0); // Set cursor to beginning of second line
   lcd_string("Loading...");
 
   while (1) {
-    // Main loop - do nothing
+    if (UCSR0A & (1 << RXC0)) { // Check if data is available
+      char received = uart_receive();
+      lcd_command(0xC0);       // Move to second line
+      lcd_data(received);      // Display the received character
+      uart_transmit(received); // Echo back the received character
+    }
   }
   return 0; // Never reached
 }
