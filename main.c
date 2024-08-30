@@ -1,4 +1,5 @@
 #include <stdint.h> // standard integer types
+#include <util/delay.h>
 
 // UART serial communication registers
 #define UBRR0H (*((volatile uint8_t *)0xC5))
@@ -37,8 +38,6 @@
 #define LCD_D5_BIT 4 // PD4 (pin 4)->LCD_D5
 #define LCD_D6_BIT 3 // PD3 (pin 3)->LCD_D6
 #define LCD_D7_BIT 2 // PD2 (pin 2)->LCD_D7
-#define _delay_us(x)
-#define _delay_ms(x)
 
 // serial communication functions
 void uart_init(void) {
@@ -133,8 +132,8 @@ void lcd_init(void) {
   lcd_command(0x0C);
   // Increment cursor, no display shift
   lcd_command(0x06);
-  // Clear display
-  lcd_command(0x01);
+
+  lcd_command(0x01); // Clear display
   _delay_ms(2);
 }
 
@@ -156,8 +155,9 @@ int main(void) {
 
   while (1) {
     if (UCSR0A & (1 << RXC0)) { // Check if data is available
+      lcd_command(0x01);        // Clear display
+      lcd_command(0x80);        // Move to first line
       char received = uart_receive();
-      lcd_command(0xC0);       // Move to second line
       lcd_data(received);      // Display the received character
       uart_transmit(received); // Echo back the received character
     }
