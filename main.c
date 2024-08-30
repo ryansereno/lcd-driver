@@ -148,18 +148,32 @@ int main(void) {
   uart_init();
 
   lcd_command(0x80); // Set cursor to beginning of first line
-  lcd_string("Llama3.1 7B");
+  lcd_string("Ready to receive");
 
-  lcd_command(0xC0); // Set cursor to beginning of second line
-  lcd_string("Loading...");
+  // lcd_command(0xC0); // Set cursor to beginning of second line
+  // lcd_string("Loading...");
+
+  uint8_t cursor_position = 0;
+  const uint8_t MAX_CHARS = 32; // 16 chars per line, 2 lines
 
   while (1) {
     if (UCSR0A & (1 << RXC0)) { // Check if data is available
-      lcd_command(0x01);        // Clear display
-      lcd_command(0x80);        // Move to first line
       char received = uart_receive();
-      lcd_data(received);      // Display the received character
       uart_transmit(received); // Echo back the received character
+
+      if (cursor_position == 0) {
+        lcd_command(0x01); // Clear display
+        lcd_command(0x80); // Move to first line
+      } else if (cursor_position == 16) {
+        lcd_command(0xC0); // Move to second line
+      }
+
+      lcd_data(received); // Display the received character
+      cursor_position++;
+
+      if (cursor_position >= MAX_CHARS) {
+        cursor_position = 0; // Reset cursor position
+      }
     }
   }
   return 0; // Never reached
