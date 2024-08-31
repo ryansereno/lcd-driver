@@ -1,9 +1,22 @@
-
 import serial
 import time
-import getch
-
 import ollama
+
+
+def send_to_board(ser, text):
+    for char in text:
+        ser.write(char.encode())
+        print(char, end="", flush=True)
+        time.sleep(0.05) 
+        received = ser.read().decode()
+        if received:
+            print(f"\nEchoed back: {received}")
+
+
+ser = serial.Serial("/dev/tty.usbmodem101", 9600, timeout=1)
+time.sleep(2)
+
+print("Sending Ollama response to MCU...")
 
 stream = ollama.chat(
     model="llama3:latest",
@@ -12,26 +25,9 @@ stream = ollama.chat(
 )
 
 for chunk in stream:
-    print(chunk["message"]["content"], end="", flush=True)
+    content = chunk["message"]["content"]
+    send_to_board(ser, content)
 
-
-ser = serial.Serial("/dev/tty.usbmodem101", 9600, timeout=1)
-time.sleep(2)
-
-print("Start typing (press 'Esc' to quit):")
-
-while True:
-    char = getch.getch()
-
-    if ord(char) == 27:
-        break
-
-    ser.write(char.encode())
-    print(char, end="", flush=True)
-
-    received = ser.read().decode()
-    if received:
-        print(f"\nEchoed back: {received}")
-
+print("\nTransmission complete.")
 ser.close()
-print("\nConnection closed.")
+print("Connection closed.")
